@@ -1,19 +1,39 @@
-# Serializes a WeatherService::Result into the exact JSON contract.
-# This is the single backend definition of the contract shape; it must
-# match frontend/src/types/weather.ts.
+# frozen_string_literal: true
+
+# Maps a raw Open-Meteo forecast payload (plus resolved location context) into
+# the exact JSON contract. This is the single backend definition of the contract
+# shape; it must match frontend/src/types/weather.ts.
+#
+#   { location, latitude, longitude, temperature_celsius, precipitation_mm, condition }
+#
+# location/latitude/longitude come from geocoding (the forecast endpoint has no
+# place name), so they are passed in alongside the raw forecast hash.
 class WeatherSerializer
-  def initialize(result)
-    @result = result
+  # @param forecast [Hash] raw Open-Meteo forecast payload (with "current").
+  # @param location [String] human-readable place label.
+  # @param latitude [Float] resolved WGS84 latitude.
+  # @param longitude [Float] resolved WGS84 longitude.
+  def initialize(forecast:, location:, latitude:, longitude:)
+    @forecast = forecast
+    @location = location
+    @latitude = latitude
+    @longitude = longitude
   end
 
+  # Builds the contract hash.
+  #
+  # @return [Hash] the contract payload (symbol keys).
+  # @complexity O(1) time, O(1) space — fixed set of fields.
   def as_json(*)
+    current = @forecast.fetch("current")
+
     {
-      location: @result.location,
-      latitude: @result.latitude,
-      longitude: @result.longitude,
-      temperature_celsius: @result.temperature_celsius,
-      precipitation_mm: @result.precipitation_mm,
-      condition: @result.condition
+      location: @location,
+      latitude: @latitude.to_f,
+      longitude: @longitude.to_f,
+      temperature_celsius: current.fetch("temperature_2m").to_f,
+      precipitation_mm: current.fetch("precipitation").to_f,
+      condition: WeatherCodes.describe(current.fetch("weather_code"))
     }
   end
 end
