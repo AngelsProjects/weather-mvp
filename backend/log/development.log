@@ -1,0 +1,24 @@
+  [1m[35m (129.7ms)[0m  [1m[35mCREATE DATABASE "backend_development" ENCODING = 'unicode'[0m
+  [1m[35m (40.4ms)[0m  [1m[35mCREATE DATABASE "backend_test" ENCODING = 'unicode'[0m
+Started GET "/up" for ::1 at 2026-06-19 12:49:32 -0700
+  [1m[35m (7.2ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY)[0m
+  [1m[35m (1.1ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+Processing by Rails::HealthController#show as */*
+  Rendering html template
+  Rendered html template (Duration: 0.0ms | Allocations: 9)
+Completed 200 OK in 7ms (Views: 4.3ms | ActiveRecord: 0.0ms | Allocations: 4143)
+
+
+Started GET "/api/v1/weather?latitude=40.4&longitude=-3.7" for ::1 at 2026-06-19 12:49:32 -0700
+Processing by Api::V1::WeatherController#show as */*
+  Parameters: {"latitude"=>"40.4", "longitude"=>"-3.7"}
+Completed 200 OK in 852ms (Views: 0.5ms | ActiveRecord: 0.0ms | Allocations: 2235)
+
+
+Started GET "/api/v1/weather?latitude=40.4" for ::1 at 2026-06-19 12:49:33 -0700
+Processing by Api::V1::WeatherController#show as */*
+  Parameters: {"latitude"=>"40.4"}
+Completed 400 Bad Request in 0ms (Views: 0.1ms | ActiveRecord: 0.0ms | Allocations: 260)
+
+
