@@ -10,16 +10,47 @@ Hiring firm is migrating its stack from **Node/TypeScript/React/AWS** toward **R
 
 ## Stack
 
-**Backend** — Rails 7.1, API-only, PostgreSQL.
-**Frontend** — Vite + React 18 + TypeScript + Tailwind CSS, [react-leaflet](https://react-leaflet.js.org/) for the map.
-**Weather data** — [Open-Meteo](https://open-meteo.com/) free API (no key required).
+**Backend** — Rails 7.1, API-only, serves JSON under `/api/v1`. Postgres via **Docker** (not a local install).
+**Frontend** — Vite + React 18 + TypeScript + Tailwind CSS, [react-leaflet](https://react-leaflet.js.org/) for the map. Package manager: **pnpm** (latest stable), not npm.
+**Weather data** — [Open-Meteo](https://open-meteo.com/) free API (no API key required).
+**Map tiles** — OpenStreetMap via react-leaflet.
 
 ## Monorepo Layout
 
 ```
 /backend    Rails 7.1 API-only app
-/frontend   Vite + React + TS app
+/frontend   Vite + React + TS app (pnpm)
 ```
+
+## Dev Ports & CORS
+
+- Frontend dev server: `:5173`
+- Backend (Rails/Puma): `:3000`
+- CORS configured in `backend/config/initializers/cors.rb` — allows `http://localhost:5173` by default (override via `CORS_ORIGINS` env var).
+
+## Postgres via Docker
+
+Run Postgres in Docker, not as a local service. Avoids the `icu4c` dylib version mismatch that breaks `postgresql@14` on macOS after a brew upgrade.
+
+```bash
+docker run -d --name weather_mvp_db \
+  -e POSTGRES_USER=weather_mvp \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=weather_mvp_development \
+  -p 5432:5432 postgres:16
+```
+
+`backend/config/database.yml` must match these credentials.
+
+## Why React over Hotwire
+
+Deliberate choice. Hiring firm's current stack is Node/TS/React/AWS. This app mirrors the *migration target* (Rails/Postgres backend) while keeping React on the frontend to match the firm's frontend fluency and the migration narrative.
+
+## Environment Gotchas
+
+- **Ruby**: system Ruby on macOS is 2.6 — too old for Rails 7.1. Use rbenv (`brew install rbenv ruby-build`), pin Ruby 3.3.x via `.ruby-version`.
+- **Postgres on macOS**: `postgresql@14` via brew breaks after brew upgrades icu4c (v74→v78 dylib mismatch). Use Docker instead.
+- **pnpm**: frontend uses pnpm, not npm. Install: `npm install -g pnpm` or `brew install pnpm`.
 
 ## Principles
 
