@@ -23,9 +23,13 @@ class WeatherFetcherService
   # @raise [WeatherApiError] when the upstream request fails (uncached).
   # @complexity O(1) time, O(1) space — one cache read, at most one request.
   def call(latitude:, longitude:)
-    Rails.cache.fetch(cache_key(latitude, longitude), expires_in: CACHE_EXPIRY) do
-      @client.forecast(latitude: latitude, longitude: longitude)
-    end
+    key = cache_key(latitude, longitude)
+    cached = Rails.cache.read(key)
+    return cached unless cached.nil?
+
+    result = @client.forecast(latitude: latitude, longitude: longitude)
+    Rails.cache.write(key, result, expires_in: CACHE_EXPIRY)
+    result
   end
 
   private
