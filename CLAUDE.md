@@ -85,3 +85,23 @@ The API returns this shape. Frontend types and backend serializers must match it
 | `temperature_celsius` | number | Current temp, °C               |
 | `precipitation_mm`    | number | Current precipitation, mm      |
 | `condition`           | string | Weather condition label        |
+
+## Dev Commands
+
+- **Backend tests:** `export PATH="$HOME/.rbenv/shims:/opt/homebrew/bin:$PATH"` first (else system Ruby 2.6 hijacks `bundle`), then `bundle exec rspec`.
+- **Frontend:** `pnpm vitest run` (unit), `pnpm lint`, `pnpm exec tsc -b` (typecheck), `pnpm test:e2e` (Playwright).
+- **DB:** `docker compose up db`; container is `meltzer-db-1`. Migrate: `bin/rails db:migrate` + `RAILS_ENV=test bin/rails db:test:prepare`.
+
+## PII Handling (searches table)
+
+- `Search.location` is **encrypted at rest** (Active Record Encryption; keys in Rails credentials under `active_record_encryption`). Column is `text` (ciphertext > plaintext).
+- Coordinates are **rounded to 2dp (~1km)** in a `before_validation` — never store pinpoint locations.
+- Retention: `rake searches:purge` (default 30 days, `RETENTION_DAYS` env). Schedule it in prod.
+- Request params `location/lat/lon/latitude/longitude` are filtered from logs (`filter_parameter_logging.rb`).
+
+## API Conventions
+
+- Controller validates input **before** any upstream call: `Float()` (not `.to_f`) for coords, range-check lat[-90,90]/lon[-180,180], cap location at 200 chars → `422`.
+- Upstream/Open-Meteo failures (`WeatherApiError`, incl. malformed payloads via serializer) → generic `502`; real cause logged server-side, never leaked to client.
+- Search persistence is **best-effort** via `SearchRecorder` — a logging failure never breaks a successful lookup.
+- Prod requires `CORS_ORIGINS` (raises if unset, rejects `*`).

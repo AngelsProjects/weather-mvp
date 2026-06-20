@@ -52,7 +52,7 @@ export default function WeatherPanel({ data, loading, error }: WeatherPanelProps
           role="status"
           aria-label="Loading weather data"
         >
-          <div className="relative w-6 h-6 flex-shrink-0" aria-hidden="true">
+          <div className="relative w-6 h-6 shrink-0" aria-hidden="true">
             <div
               className="pulse-ring absolute inset-0 rounded-full"
               style={{ border: '2px solid var(--amber)' }}

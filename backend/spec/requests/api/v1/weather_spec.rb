@@ -115,6 +115,47 @@ RSpec.describe "GET /api/v1/weather", type: :request do
     end
   end
 
+  # ── Error: invalid coordinates ────────────────────────────────────────────
+  describe "invalid coordinates" do
+    it "returns 422 for a non-numeric latitude" do
+      get "/api/v1/weather", params: { lat: "notanumber", lon: "10" }
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "returns 422 for an out-of-range latitude" do
+      get "/api/v1/weather", params: { lat: "91", lon: "10" }
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "returns 422 for an out-of-range longitude" do
+      get "/api/v1/weather", params: { lat: "10", lon: "200" }
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "does not call the forecast API for invalid coordinates" do
+      get "/api/v1/weather", params: { lat: "91", lon: "10" }
+      expect(WebMock).not_to have_requested(:get, %r{api\.open-meteo\.com/v1/forecast})
+    end
+
+    it "does not persist a Search record for invalid coordinates" do
+      get "/api/v1/weather", params: { lat: "91", lon: "10" }
+      expect(Search.count).to eq(0)
+    end
+  end
+
+  # ── Error: over-long location ─────────────────────────────────────────────
+  describe "over-long location query" do
+    it "returns 422 when the location exceeds the length cap" do
+      get "/api/v1/weather", params: { location: "a" * 201 }
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "does not call the geocoding API for an over-long location" do
+      get "/api/v1/weather", params: { location: "a" * 201 }
+      expect(WebMock).not_to have_requested(:get, %r{geocoding-api\.open-meteo\.com})
+    end
+  end
+
   # ── Error: location not found ─────────────────────────────────────────────
   describe "location not found" do
     before do
@@ -141,6 +182,40 @@ RSpec.describe "GET /api/v1/weather", type: :request do
     end
   end
 
+  # ── Resilience: search persistence is best-effort ─────────────────────────
+  describe "when recording the search fails" do
+    before do
+      allow(Search).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(Search.new))
+      get "/api/v1/weather", params: { location: "London" }
+    end
+
+    it "still returns 200 with the weather payload" do
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["temperature_celsius"]).to eq(12.0)
+    end
+  end
+
+  # ── Error: malformed upstream forecast payload ────────────────────────────
+  describe "malformed forecast payload" do
+    before do
+      stub_request(:get, %r{api\.open-meteo\.com/v1/forecast})
+        .to_return(
+          status: 200,
+          body: { unexpected: "shape" }.to_json,
+          headers: { "Content-Type" => "application/json" }
+        )
+      get "/api/v1/weather", params: { location: "London" }
+    end
+
+    it "returns 502 Bad Gateway rather than crashing" do
+      expect(response).to have_http_status(:bad_gateway)
+    end
+
+    it "returns a JSON error body" do
+      expect(JSON.parse(response.body)).to have_key("error")
+    end
+  end
+
   # ── Error: upstream forecast API failure ──────────────────────────────────
   describe "upstream forecast API failure" do
     before do
@@ -157,6 +232,11 @@ RSpec.describe "GET /api/v1/weather", type: :request do
       body = JSON.parse(response.body)
       expect(body).to have_key("error")
       expect(body["error"]).to be_a(String)
+    end
+
+    it "does not leak the upstream status or provider name to the client" do
+      body = JSON.parse(response.body)
+      expect(body["error"]).not_to match(/Open-Meteo|\b500\b/)
     end
 
     it "does not persist a Search record" do

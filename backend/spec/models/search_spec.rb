@@ -31,18 +31,60 @@ RSpec.describe Search, type: :model do
       expect(search).not_to be_valid
       expect(search.errors[:longitude]).to include("can't be blank")
     end
+
+    it "is invalid when latitude is out of the WGS84 range" do
+      search.latitude = 91
+      expect(search).not_to be_valid
+      expect(search.errors[:latitude]).to be_present
+    end
+
+    it "is invalid when longitude is out of the WGS84 range" do
+      search.longitude = -181
+      expect(search).not_to be_valid
+      expect(search.errors[:longitude]).to be_present
+    end
+
+    it "accepts the boundary coordinates" do
+      search.latitude = -90
+      search.longitude = 180
+      expect(search).to be_valid
+    end
+  end
+
+  # ── PII handling ───────────────────────────────────────────────────────────
+  describe "PII handling" do
+    it "encrypts the location at rest" do
+      search.save!
+      raw = Search.connection.select_value(
+        "SELECT location FROM searches WHERE id = #{search.id}"
+      )
+      expect(raw).not_to include("London")
+    end
+
+    it "exposes the decrypted location through the attribute" do
+      search.save!
+      expect(search.reload.location).to eq("London, England, United Kingdom")
+    end
+
+    it "rounds stored coordinates to two decimals before saving" do
+      search.latitude = 51.508530
+      search.longitude = -0.125700
+      search.save!
+      expect(search.reload.latitude).to eq(BigDecimal("51.51"))
+      expect(search.reload.longitude).to eq(BigDecimal("-0.13"))
+    end
   end
 
   # ── Persistence ────────────────────────────────────────────────────────────
   describe "persistence" do
-    it "stores decimal latitude with precision" do
+    it "stores latitude rounded to two decimals" do
       search.save!
-      expect(search.reload.latitude).to eq(BigDecimal("51.5085"))
+      expect(search.reload.latitude).to eq(BigDecimal("51.51"))
     end
 
-    it "stores decimal longitude with precision" do
+    it "stores longitude rounded to two decimals" do
       search.save!
-      expect(search.reload.longitude).to eq(BigDecimal("-0.1257"))
+      expect(search.reload.longitude).to eq(BigDecimal("-0.13"))
     end
 
     it "records a created_at timestamp on save" do
@@ -79,6 +121,19 @@ RSpec.describe Search, type: :model do
 
     it "returns an ActiveRecord::Relation (chainable)" do
       expect(described_class.recent).to be_a(ActiveRecord::Relation)
+    end
+  end
+
+  # ── Retention ──────────────────────────────────────────────────────────────
+  describe ".purge_older_than" do
+    it "deletes rows older than the cutoff and keeps newer ones" do
+      old = described_class.create!(valid_attributes.merge(created_at: 40.days.ago))
+      fresh = described_class.create!(valid_attributes.merge(created_at: 1.day.ago))
+
+      described_class.purge_older_than(30.days.ago)
+
+      expect(described_class.exists?(old.id)).to be(false)
+      expect(described_class.exists?(fresh.id)).to be(true)
     end
   end
 end

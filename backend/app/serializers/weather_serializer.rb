@@ -35,5 +35,9 @@ class WeatherSerializer
       precipitation_mm: current.fetch("precipitation").to_f,
       condition: WeatherCodes.describe(current.fetch("weather_code"))
     }
+  rescue KeyError => e
+    # The upstream payload was missing a field we depend on. Normalize to the
+    # single domain error so the controller renders a 502 instead of a 500.
+    raise WeatherApiError, "malformed forecast payload (#{e.key})"
   end
 end

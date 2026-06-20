@@ -13,20 +13,21 @@ export default function App() {
   const weather = useWeather();
   const geo = useGeolocation();
 
+  const { byCoords } = weather;
+
   // When geolocation resolves new coords, fire a weather lookup.
+  // byCoords is useCallback-stable, so depending on it is honest and won't loop.
   useEffect(() => {
     if (geo.coords) {
-      weather.byCoords(geo.coords.latitude, geo.coords.longitude);
+      byCoords(geo.coords.latitude, geo.coords.longitude);
     }
-    // weather object is stable (useCallback inside hook) so safe to omit
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geo.coords]);
+  }, [geo.coords, byCoords]);
 
   const handleMapClick = useCallback(
     (lat: number, lon: number): void => {
-      weather.byCoords(lat, lon);
+      byCoords(lat, lon);
     },
-    [weather],
+    [byCoords],
   );
 
   const hasPanel = weather.loading || !!weather.error || !!weather.data;
@@ -36,7 +37,7 @@ export default function App() {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header
-        className="flex-shrink-0 bg-[--ink-mid] border-b border-[--border]"
+        className="shrink-0 bg-[--ink-mid] border-b border-[--border]"
         role="banner"
       >
         {/* Top bar: wordmark + subtitle */}
@@ -75,7 +76,7 @@ export default function App() {
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="flex-shrink-0"
+        className="shrink-0"
       >
         {geo.error && (
           <p
@@ -94,7 +95,7 @@ export default function App() {
       {/* ── Hint bar — hidden once a query is made ──────────────────── */}
       {!hasPanel && (
         <div
-          className="flex-shrink-0 flex items-center justify-center gap-2 py-2 text-[11px] tracking-wider uppercase select-none"
+          className="shrink-0 flex items-center justify-center gap-2 py-2 text-[11px] tracking-wider uppercase select-none"
           style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}
           aria-label="Usage hint: tap the map or search a city"
         >
@@ -132,7 +133,7 @@ export default function App() {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer
-        className="flex-shrink-0 flex flex-wrap gap-x-4 gap-y-0.5 px-4 py-1.5 text-[10px] tracking-wider uppercase select-none border-t border-[--border]"
+        className="shrink-0 flex flex-wrap gap-x-4 gap-y-0.5 px-4 py-1.5 text-[10px] tracking-wider uppercase select-none border-t border-[--border]"
         style={{ color: 'var(--muted)', background: 'var(--ink-mid)' }}
         aria-label="Data sources"
       >
