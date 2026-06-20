@@ -48,6 +48,9 @@ export function useWeather(): WeatherState {
           err instanceof WeatherRequestError
             ? err.message
             : 'Something went wrong fetching the weather.';
+        // Drop stale data so the UI never shows an old result beside an error
+        // (e.g. a previous city's marker lingering on the map after a failure).
+        setData(null);
         setError(message);
         setLoading(false);
       });
