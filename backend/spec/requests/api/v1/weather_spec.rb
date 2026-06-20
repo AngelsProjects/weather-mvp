@@ -36,20 +36,32 @@ RSpec.describe "GET /api/v1/weather", type: :request do
     expect(body["condition"]).to eq("Overcast")
   end
 
-  it "rejects a missing location" do
+  it "returns 422 when no location params are provided" do
     get "/api/v1/weather"
 
-    expect(response).to have_http_status(:bad_request)
+    expect(response).to have_http_status(:unprocessable_content)
   end
 
-  it "returns 404 when the location cannot be found" do
+  it "returns 422 when the location cannot be found" do
     stub_request(:get, %r{geocoding-api\.open-meteo\.com/v1/search})
       .to_return(status: 200, body: { generationtime_ms: 0.1 }.to_json,
                  headers: { "Content-Type" => "application/json" })
 
     get "/api/v1/weather", params: { location: "Nowhereville" }
 
-    expect(response).to have_http_status(:not_found)
+    expect(response).to have_http_status(:unprocessable_content)
+  end
+
+  it "returns 200 for direct lat/lon coords without geocoding" do
+    stub_request(:get, %r{api\.open-meteo\.com/v1/forecast})
+      .to_return(status: 200, body: forecast_body, headers: { "Content-Type" => "application/json" })
+
+    get "/api/v1/weather", params: { lat: 51.5, lon: -0.12 }
+
+    expect(response).to have_http_status(:ok)
+    body = JSON.parse(response.body)
+    expect(body["latitude"]).to eq(51.5)
+    expect(body["temperature_celsius"]).to eq(12.0)
   end
 
   it "returns 502 when the upstream weather API fails" do
