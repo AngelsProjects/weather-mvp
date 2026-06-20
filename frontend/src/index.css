@@ -1,2 +1,131 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,wght@1,300;1,600&display=swap');
+
+:root {
+  --ink:          #0e1117;
+  --ink-mid:      #1a2030;
+  --ink-surface:  #232c3b;
+  --border:       rgba(255 255 255 / 0.08);
+  --border-hi:    rgba(255 255 255 / 0.16);
+  --amber:        #e8a03a;
+  --amber-dim:    rgba(232 160 58 / 0.15);
+  --teal:         #3ab8b8;
+  --teal-dim:     rgba(58 184 184 / 0.12);
+  --text:         #c8d4e0;
+  --text-hi:      #dde6f0;
+  --muted:        #8896a8;
+  --danger:       #e05c5c;
+  --danger-dim:   rgba(224 92 92 / 0.08);
+  --focus-ring:   #e8a03a;
+  --mono:         'DM Mono', monospace;
+  --display:      'Fraunces', serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Global focus ring ──────────────────────────────────────────────────────
+   Never suppress outlines. Replace the browser default with an amber ring
+   that is visible against the dark background at ≥3:1 contrast.          */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─── Touch target helper ────────────────────────────────────────────────────
+   Prevents the 300ms tap delay on mobile without blocking browser gestures. */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* ─── Panel slide-in ─────────────────────────────────────────────────────── */
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0);   }
+}
+.panel-animate { animation: panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ─── Loading pulse ──────────────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 1; }
+  70%  { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes pulse-core {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.4; }
+}
+.pulse-ring { animation: pulse-ring 1.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.pulse-core { animation: pulse-core 1.4s ease-in-out infinite; }
+
+/* Honour OS "reduce motion" preference */
+@media (prefers-reduced-motion: reduce) {
+  .panel-animate { animation: none; }
+  .pulse-ring    { animation: none; }
+  .pulse-core    { animation: none; opacity: 1; }
+}
+
+/* ─── Leaflet overrides ──────────────────────────────────────────────────── */
+.leaflet-container { background: var(--ink); font-family: var(--mono); }
+
+.leaflet-popup-content-wrapper {
+  background: var(--ink-mid);
+  color: var(--text);
+  border: 1px solid var(--border-hi);
+  border-radius: 3px;
+  box-shadow: 0 8px 32px rgba(0 0 0 / 0.6);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.leaflet-popup-content { margin: 0; }
+.leaflet-popup-tip     { background: var(--ink-mid); }
+
+.leaflet-popup-close-button {
+  color: var(--muted) !important;
+  /* Meet 44px touch target */
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 18px !important;
+  top: 4px !important;
+  right: 4px !important;
+}
+.leaflet-popup-close-button:hover { color: var(--amber) !important; }
+.leaflet-popup-close-button:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  border-radius: 2px !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(14 17 23 / 0.8) !important;
+  color: var(--muted) !important;
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  backdrop-filter: blur(4px);
+}
+.leaflet-control-attribution a { color: var(--teal) !important; }
+
+.leaflet-control-zoom a {
+  background: var(--ink-mid) !important;
+  color: var(--muted) !important;
+  border-color: var(--border-hi) !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 18px !important;
+}
+.leaflet-control-zoom a:hover { background: var(--ink-surface) !important; color: var(--amber) !important; }
+.leaflet-control-zoom a:focus-visible { outline: 2px solid var(--focus-ring) !important; }
