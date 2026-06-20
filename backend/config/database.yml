@@ -19,7 +19,5 @@ test:
   database: weather_mvp_test
 
 production:
-  <<: *default
-  database: weather_mvp_production
-  username: <%= ENV["DB_USER"] %>
-  password: <%= ENV["DB_PASSWORD"] %>
+  url: <%= ENV["DATABASE_URL"] %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
