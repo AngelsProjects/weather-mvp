@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# bin/dev — one command to run the whole stack: Postgres (Docker),
+# Rails API (:3000), and the Vite frontend (:5173).
+#
+# Ctrl+C stops the backend and frontend cleanly. Postgres keeps running
+# in Docker (it's `restart: unless-stopped`); pass --stop-db to also stop it.
+#
+# Usage:
+#   bin/dev            # start DB + backend + frontend
+#   bin/dev --stop-db  # on exit, also `docker compose stop db`
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+STOP_DB=false
+[[ "${1:-}" == "--stop-db" ]] && STOP_DB=true
+
+# rbenv shims first — else macOS system Ruby 2.6 hijacks `bundle`/`rails`.
+export PATH="$HOME/.rbenv/shims:/opt/homebrew/bin:$PATH"
+
+BACKEND_PID=""
+FRONTEND_PID=""
+
+# Kill a process and every descendant it spawned (puma/vite fork children).
+kill_tree() {
+  local pid="$1"
+  [[ -z "$pid" ]] && return 0
+  local kid
+  for kid in $(pgrep -P "$pid" 2>/dev/null); do kill_tree "$kid"; done
+  kill "$pid" 2>/dev/null || true
+}
+
+cleanup() {
+  echo ""
+  echo "[bin/dev] shutting down..."
+  kill_tree "$FRONTEND_PID"
+  kill_tree "$BACKEND_PID"
+  # belt-and-suspenders: anything still holding the ports
+  lsof -ti :3000 -sTCP:LISTEN 2>/dev/null | xargs -r kill 2>/dev/null || true
+  lsof -ti :5173 -sTCP:LISTEN 2>/dev/null | xargs -r kill 2>/dev/null || true
+  rm -f "$ROOT/backend/tmp/pids/server.pid"
+  if [[ "$STOP_DB" == true ]]; then
+    echo "[bin/dev] stopping Postgres..."
+    docker compose stop db >/dev/null 2>&1 || true
+  fi
+  echo "[bin/dev] done."
+}
+trap cleanup EXIT INT TERM
+
+# 1. Postgres ---------------------------------------------------------------
+echo "[bin/dev] starting Postgres (Docker)..."
+docker compose up -d db
+
+echo "[bin/dev] waiting for Postgres..."
+until docker compose exec -T db pg_isready -U weather_mvp >/dev/null 2>&1; do
+  sleep 0.5
+done
+
+# 2. Backend setup (foreground so output isn't interleaved) -----------------
+echo "[bin/dev] preparing backend..."
+( cd backend
+  rm -f tmp/pids/server.pid
+  bundle check >/dev/null 2>&1 || bundle install
+  bin/rails db:prepare
+)
+
+# 3. Frontend setup ---------------------------------------------------------
+[[ -d frontend/node_modules ]] || ( cd frontend && pnpm install )
+
+# 4. Launch both servers ----------------------------------------------------
+echo "[bin/dev] starting Rails API on :3000..."
+( cd backend && exec bin/rails server -p 3000 ) &
+BACKEND_PID=$!
+
+echo "[bin/dev] starting Vite frontend on :5173..."
+( cd frontend && exec pnpm dev --port 5173 --strictPort ) &
+FRONTEND_PID=$!
+
+echo ""
+echo "[bin/dev] ───────────────────────────────────────────"
+echo "[bin/dev]  Frontend  http://localhost:5173"
+echo "[bin/dev]  API       http://localhost:3000/api/v1/weather?location=Berlin"
+echo "[bin/dev]  Ctrl+C to stop"
+echo "[bin/dev] ───────────────────────────────────────────"
+
+# Wait on either child; if one dies, cleanup() tears down the rest.
+wait -n "$BACKEND_PID" "$FRONTEND_PID"

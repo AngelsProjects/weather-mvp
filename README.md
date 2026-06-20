@@ -97,6 +97,29 @@ Every architecture decision maps to a choice the firm will face during their mig
 - Node 20+ and pnpm (`npm install -g pnpm`)
 - Docker Desktop (for local Postgres)
 
+### Quick start — one command
+
+```bash
+./bin/dev
+```
+
+Boots the whole stack from a single terminal:
+
+- starts Postgres in Docker and waits until it's ready
+- installs backend gems / runs `db:prepare` if needed
+- installs frontend deps if `node_modules` is missing
+- launches the Rails API on **:3000** and the Vite frontend on **:5173**
+
+Then open <http://localhost:5173>. Press **Ctrl+C** once to stop both
+servers (Postgres keeps running in Docker). Use `./bin/dev --stop-db` if
+you also want Postgres stopped on exit.
+
+> The script puts rbenv shims first on `PATH` (so macOS system Ruby 2.6
+> can't hijack `bundle`/`rails`) and pins Vite to port 5173 with
+> `--strictPort` so it always matches the CORS allowlist.
+
+To run the pieces by hand instead, use the sections below.
+
 ### Backend
 
 ```bash
